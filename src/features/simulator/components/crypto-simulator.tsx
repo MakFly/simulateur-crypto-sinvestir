@@ -1,10 +1,11 @@
 "use client";
 
-import { Controller, useForm } from "react-hook-form";
+import { useState } from "react";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { type DateRange } from "react-day-picker";
+import { type Matcher } from "react-day-picker";
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -57,14 +58,12 @@ function isoDaysAgo(days: number): string {
 }
 
 const dateFromIso = (iso: string): Date => new Date(`${iso}T00:00:00`);
-const labelDate = (iso: string): string =>
-  format(dateFromIso(iso), "d MMM yyyy", { locale: fr });
+const shortDate = (iso: string): string =>
+  format(dateFromIso(iso), "dd/MM/yyyy");
 
 export function CryptoSimulator() {
   const {
     control,
-    watch,
-    setValue,
     formState: { errors },
   } = useForm<SimulatorFormValues>({
     resolver: zodResolver(simulatorFormSchema),
@@ -79,7 +78,9 @@ export function CryptoSimulator() {
     },
   });
 
-  const values = watch();
+  // useWatch type les champs comme optionnels, mais tous ont une valeur par
+  // défaut dans useForm -> le cast est sûr.
+  const values = useWatch({ control }) as SimulatorFormValues;
   const { result, loading, error, hasData } = useSimulation({
     coinId: values.coinId,
     amount: Number(values.amount) || 0,
@@ -92,19 +93,14 @@ export function CryptoSimulator() {
   const positive = result.profit >= 0;
   const showResults = hasData && !error;
 
-  const range: DateRange | undefined =
-    values.from && values.to
-      ? { from: dateFromIso(values.from), to: dateFromIso(values.to) }
-      : undefined;
-
-  function handleRangeSelect(selected: DateRange | undefined) {
-    setValue("from", selected?.from ? format(selected.from, "yyyy-MM-dd") : "", {
-      shouldValidate: true,
-    });
-    setValue("to", selected?.to ? format(selected.to, "yyyy-MM-dd") : "", {
-      shouldValidate: true,
-    });
-  }
+  // bornage croisé : début ≤ fin ≤ aujourd'hui (dates hors plage désactivées)
+  const today = new Date();
+  const fromDisabled: Matcher[] = [
+    { after: values.to ? dateFromIso(values.to) : today },
+  ];
+  const toDisabled: Matcher[] = values.from
+    ? [{ before: dateFromIso(values.from) }, { after: today }]
+    : [{ after: today }];
 
   return (
     <div className="grid gap-5 @container lg:grid-cols-[minmax(0,360px)_1fr]">
@@ -200,36 +196,34 @@ export function CryptoSimulator() {
 
         <div className="space-y-2">
           <Label>Période</Label>
-          <Popover>
-            <PopoverTrigger
-              className={cn(
-                buttonVariants({ variant: "outline" }),
-                "w-full justify-start font-normal",
+          <div className="grid grid-cols-2 gap-3">
+            <Controller
+              control={control}
+              name="from"
+              render={({ field }) => (
+                <DatePicker
+                  id="from"
+                  placeholder="Début"
+                  value={field.value}
+                  onChange={field.onChange}
+                  disabled={fromDisabled}
+                />
               )}
-            >
-              <CalendarIcon className="size-4 text-muted-foreground" />
-              {values.from && values.to ? (
-                <span>
-                  {labelDate(values.from)} – {labelDate(values.to)}
-                </span>
-              ) : (
-                <span className="text-muted-foreground">
-                  Choisir une période
-                </span>
+            />
+            <Controller
+              control={control}
+              name="to"
+              render={({ field }) => (
+                <DatePicker
+                  id="to"
+                  placeholder="Fin"
+                  value={field.value}
+                  onChange={field.onChange}
+                  disabled={toDisabled}
+                />
               )}
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="range"
-                selected={range}
-                onSelect={handleRangeSelect}
-                defaultMonth={dateFromIso(values.from || isoDaysAgo(30))}
-                disabled={{ after: new Date() }}
-                locale={fr}
-                autoFocus
-              />
-            </PopoverContent>
-          </Popover>
+            />
+          </div>
           {errors.to && (
             <p className="text-xs text-destructive">{errors.to.message}</p>
           )}
@@ -358,5 +352,58 @@ function Stat({
         </p>
       )}
     </div>
+  );
+}
+
+/** Sélecteur de date unique (Popover + Calendar), avec fermeture auto. */
+function DatePicker({
+  id,
+  placeholder,
+  value,
+  onChange,
+  disabled,
+}: {
+  id: string;
+  placeholder: string;
+  value: string;
+  onChange: (iso: string) => void;
+  disabled?: Matcher[];
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = value ? dateFromIso(value) : undefined;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        id={id}
+        className={cn(
+          buttonVariants({ variant: "outline" }),
+          "w-full justify-start px-3 font-normal",
+        )}
+      >
+        <CalendarIcon className="size-4 shrink-0 text-muted-foreground" />
+        {value ? (
+          <span className="truncate">{shortDate(value)}</span>
+        ) : (
+          <span className="text-muted-foreground">{placeholder}</span>
+        )}
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="single"
+          selected={selected}
+          defaultMonth={selected}
+          onSelect={(d) => {
+            if (d) {
+              onChange(format(d, "yyyy-MM-dd"));
+              setOpen(false);
+            }
+          }}
+          disabled={disabled}
+          locale={fr}
+          autoFocus
+        />
+      </PopoverContent>
+    </Popover>
   );
 }
