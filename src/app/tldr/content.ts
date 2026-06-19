@@ -16,7 +16,7 @@ sur les **prix historiques réels**, avec une lecture **pédagogique** : compara
 - **Tailwind v4 + shadcn/ui** — tokens de design extraits de leur CSS de prod (Lexend, dark-first, radius 8px) ; palette retravaillée façon plateforme de trading.
 - **react-hook-form + zod** — formulaire validé (montant *number-only*, période bornée).
 - **Recharts** — courbe d'évolution interactive (survol, zoom au drag).
-- **\`fetch\` natif**, zéro axios, logique de calcul **pure et testée** (16 tests).
+- **\`fetch\` natif**, zéro axios, logique de calcul **pure et testée** (15 tests).
 
 > Leur suite réelle est en Nuxt : la logique vit dans une fonction pure + un hook,
 > sans couplage au layout — donc transposable, et embarquable via iframe.
@@ -25,11 +25,17 @@ sur les **prix historiques réels**, avec une lecture **pédagogique** : compara
 
 - Achat unique **ou** DCA (quotidien / hebdo / mensuel) sur données réelles.
 - KPI : valeur finale, plus/moins-value, ROI, quantité, prix d'achat moyen.
-- Graphe : survol temps réel (valeur / investi / quantité), **zoom au drag** sur une plage.
+- Graphe : survol temps réel (valeur / investi / quantité), **zoom au drag** sur une plage + aide intégrée.
 - **Net de frais & fiscalité** (frais 0,5 % + PFU 30 %) en un clic.
-- **Comparaison d'opportunité** : crypto vs achat unique vs Livret A vs ETF World.
+- **Comparaison d'opportunité** : crypto vs achat unique (lump-sum) vs ETF MSCI World vs Or vs Livret A.
 - **Indicateurs de risque** : volatilité annualisée, plus forte baisse (drawdown).
-- **URL partageable** (l'état est dans l'adresse) et **aperçu embarquable** (\`/embed\`).
+- **URL partageable** (l'état est dans l'adresse) et **aperçu embarquable** (\`/embed\`, iframe auto-resize + CSP \`frame-ancestors\`).
+
+## Qualité & CI
+
+- **15 tests** sur la logique de calcul (one-shot, DCA, frais, fiscalité, lump-sum, benchmarks, risque).
+- CI GitHub : **audit sécurité** (npm + \`bun audit\`, fail high/critical), **gitleaks** (secrets), **CodeQL** (SAST) — tous verts.
+- \`build\` + \`lint\` (0 warning) + \`tsc\` strict à chaque commit.
 
 ## Données — 100 % réelles
 
