@@ -9,11 +9,12 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { formatEUR } from "../lib/format";
+import { formatCoins, formatEUR } from "../lib/format";
 import type { ResultPoint } from "../types";
 
 interface EvolutionChartProps {
   series: ResultPoint[];
+  symbol: string;
 }
 
 const monthFmt = new Intl.DateTimeFormat("fr-FR", {
@@ -36,14 +37,16 @@ function ChartTooltip({
   active,
   payload,
   label,
+  symbol,
 }: {
   active?: boolean;
-  payload?: { dataKey: string; value: number }[];
+  payload?: { payload: ResultPoint }[];
   label?: string;
+  symbol: string;
 }) {
   if (!active || !payload?.length) return null;
-  const value = payload.find((p) => p.dataKey === "value")?.value ?? 0;
-  const invested = payload.find((p) => p.dataKey === "invested")?.value ?? 0;
+  const point = payload[0]?.payload;
+  if (!point) return null;
 
   return (
     <div className="rounded-lg border border-border bg-popover/95 px-3 py-2 text-xs shadow-lg backdrop-blur-sm">
@@ -56,17 +59,25 @@ function ChartTooltip({
       </p>
       <p className="flex items-center justify-between gap-4">
         <span className="text-muted-foreground">Valeur</span>
-        <span className="font-semibold text-primary">{formatEUR(value)}</span>
+        <span className="font-semibold text-primary">
+          {formatEUR(point.value)}
+        </span>
       </p>
       <p className="flex items-center justify-between gap-4">
         <span className="text-muted-foreground">Investi</span>
-        <span className="font-medium">{formatEUR(invested)}</span>
+        <span className="font-medium">{formatEUR(point.invested)}</span>
+      </p>
+      <p className="flex items-center justify-between gap-4">
+        <span className="text-muted-foreground">Quantité</span>
+        <span className="font-medium text-chart-2">
+          {formatCoins(point.coins, symbol)}
+        </span>
       </p>
     </div>
   );
 }
 
-export function EvolutionChart({ series }: EvolutionChartProps) {
+export function EvolutionChart({ series, symbol }: EvolutionChartProps) {
   return (
     <ResponsiveContainer width="100%" height="100%">
       <AreaChart
@@ -99,7 +110,7 @@ export function EvolutionChart({ series }: EvolutionChartProps) {
           axisLine={false}
           tick={{ fill: "var(--color-muted-foreground)", fontSize: 12 }}
         />
-        <Tooltip content={<ChartTooltip />} />
+        <Tooltip content={<ChartTooltip symbol={symbol} />} />
         <Area
           type="monotone"
           dataKey="invested"

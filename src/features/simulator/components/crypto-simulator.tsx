@@ -307,7 +307,10 @@ export function CryptoSimulator() {
               {loading || !showResults ? (
                 <Skeleton className="size-full" />
               ) : (
-                <EvolutionChart series={result.series} />
+                <EvolutionChart
+                  series={result.series}
+                  symbol={coin?.symbol ?? ""}
+                />
               )}
             </div>
 

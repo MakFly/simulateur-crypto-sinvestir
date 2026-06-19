@@ -77,6 +77,7 @@ export function simulate({
       date: point.date,
       invested,
       value: coins * point.price,
+      coins,
     });
   }
 

@@ -24,6 +24,8 @@ export interface ResultPoint {
   invested: number;
   /** Valeur du portefeuille à cette date. */
   value: number;
+  /** Quantité d'actif cumulée détenue à cette date. */
+  coins: number;
 }
 
 export interface SimulationResult {
