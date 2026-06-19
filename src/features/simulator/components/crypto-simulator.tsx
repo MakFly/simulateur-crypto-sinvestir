@@ -436,12 +436,18 @@ export function CryptoSimulator({
                     {benchmarks.map((b) => (
                       <CompareRow
                         key={b.key}
-                        label={`${b.label} (${formatPercentPlain(b.rate)}/an)`}
+                        label={b.label}
                         value={b.finalValue}
                         roi={b.roi}
                       />
                     ))}
                   </ul>
+                  {!benchmarks.some((b) => b.key !== "livretA") && (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Comparatifs marché (MSCI World, Or) momentanément
+                      indisponibles — réessaie dans un instant.
+                    </p>
+                  )}
                 </div>
               </div>
             )}

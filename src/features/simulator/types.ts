@@ -60,12 +60,17 @@ export interface SimulationResult {
   series: ResultPoint[];
 }
 
-/** Comparatif à taux fixe (Livret A, ETF…) sur le même échéancier de versements. */
+/** Série de prix réelle d'un actif de référence (ETF, or…). */
+export interface BenchmarkSeries {
+  key: string;
+  label: string;
+  prices: PricePoint[];
+}
+
+/** Résultat d'un comparatif sur le même échéancier de versements. */
 export interface Benchmark {
   key: string;
   label: string;
-  /** Taux annuel (ratio, ex. 0.03). */
-  rate: number;
   finalValue: number;
   roi: number;
 }

@@ -31,15 +31,20 @@ sur les **prix historiques réels**, avec une lecture **pédagogique** : compara
 - **Indicateurs de risque** : volatilité annualisée, plus forte baisse (drawdown).
 - **URL partageable** (l'état est dans l'adresse) et **aperçu embarquable** (\`/embed\`).
 
-## Données
+## Données — 100 % réelles
 
-Historique **depuis 2020** via **Binance** (klines EUR, paginé), **CoinGecko** en repli.
-Couche \`PriceProvider\` découplée : changer de source ne touche pas au calcul.
+- **Crypto** : **Binance** (klines EUR, paginé, historique depuis 2020), **CoinGecko** en repli.
+- **Benchmarks** : **Yahoo Finance** pour l'ETF **MSCI World** (\`EUNL.DE\`) et l'**Or** (\`4GLD.DE\`), cotés en EUR — vrai backtest sur les mêmes versements.
+- **Livret A** : **barème officiel** (taux réglementé Banque de France, historisé).
+
+Aucun taux inventé : les comparatifs sont des backtests sur séries réelles.
 
 ## Limites assumées
 
 - ~12 cryptos majeures (la couche données accepte tout identifiant supporté).
-- Benchmarks à **taux fixe illustratifs** (pas de série réelle d'ETF).
+- Yahoo Finance est une API publique non officielle : sur forte sollicitation
+  d'une même IP elle peut temporairement répondre 429 — les benchmarks marché
+  se dégradent alors proprement (le Livret A, calculé hors réseau, reste affiché).
 - Performances passées ≠ futures — risque de perte en capital.
 
 ## Lancer

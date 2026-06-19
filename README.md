@@ -36,19 +36,20 @@ Une clé optionnelle se configure via `.env` — voir `.env.example`.
 ```
  Navigateur ── <CryptoSimulator /> (composant autonome, embeddable)
       │              │
-      │   useSimulation() ── simulate() : logique pure one-shot + DCA (testée)
+      │   useSimulation() ── analyze() : one-shot + DCA + comparatifs + risque (testé)
       │              │
-      └── fetch ──▶ /api/prices (Route Handler) ──▶ CoinGecko (prix EUR, 365 j, caché 1 h)
+      ├── fetch ──▶ /api/prices     ──▶ Binance klines EUR (histo) → CoinGecko (repli)
+      └── fetch ──▶ /api/benchmarks ──▶ Yahoo Finance (MSCI World, Or, EUR)
+                                        + Livret A (barème officiel, hors réseau)
 ```
 
-- **`features/simulator/lib/simulate.ts`** — logique pure, sans dépendance UI ni
-  réseau, couverte par des tests (`simulate.test.ts`).
-- **`features/simulator/hooks/use-simulation.ts`** — orchestration : fetch des
-  prix + recalcul mémoïsé.
-- **`app/api/prices/route.ts`** — proxy CoinGecko côté serveur (clé masquée, cache).
-- **`features/simulator/components/`** — `CryptoSimulator` (form + résultats) et
-  `EvolutionChart` (Recharts).
-- **`app/embed/`** — version sans chrome, pensée pour l'iframe.
+- **`lib/simulate.ts`** — logique pure (one-shot/DCA, frais, fiscalité), testée.
+- **`lib/analyze.ts`** — lump-sum, backtests benchmark réels, risque (drawdown/volatilité).
+- **`lib/prices.ts`** — multi-fournisseur Binance → CoinGecko (clé masquée, cache).
+- **`lib/benchmarks.ts`** + **`lib/livret-a.ts`** — séries Yahoo Finance + barème Livret A.
+- **`hooks/use-simulation.ts`** — orchestration : fetch prix + benchmarks, recalcul mémoïsé.
+- **`components/`** — `CryptoSimulator`, `EvolutionChart` (Recharts, zoom au drag).
+- **`app/embed/`** — version sans chrome (iframe auto-resize) ; **`app/tldr/`** — résumé markdown.
 
 ---
 
@@ -92,18 +93,26 @@ Le composant est conçu pour deux usages :
 
 ---
 
-## Limites assumées (démo)
+## Données — 100 % réelles
 
-- **Historique borné à 365 jours** (palier gratuit CoinGecko). Pour des périodes
-  longues, basculer sur l'API payante CoinGecko ou un dataset pré-chargé.
-- **Set de ~12 cryptos majeures** (vs « 7 000+ »). La couche données accepte
-  n'importe quel `id` CoinGecko : étendre la liste suffit.
-- **Pas de frais ni de fiscalité** dans le calcul (comme le simulateur de référence).
+- **Crypto** : Binance (klines EUR, historique depuis 2020), CoinGecko en repli.
+- **Benchmarks** : Yahoo Finance pour l'ETF **MSCI World** (`EUNL.DE`) et l'**Or**
+  (`4GLD.DE`) en EUR — vrai backtest ; **Livret A** au barème officiel réglementé.
+
+## Limites assumées
+
+- **Set de ~12 cryptos majeures** (vs « 7 000+ ») ; la couche données accepte
+  n'importe quel identifiant supporté.
+- **Yahoo Finance** est une API publique non officielle : sous forte sollicitation
+  d'une même IP elle peut répondre 429. Les benchmarks marché se dégradent alors
+  proprement (le Livret A, calculé hors réseau, reste affiché). Sur Vercel (IP
+  dédiée + cache 6 h) le quota n'est pas un souci.
+- Benchmarks comme **comparaison d'opportunité**, pas conseil en investissement.
 
 ---
 
 ## Suggestions d'amélioration
 
-Voir le formulaire de rendu — pistes : projection prospective (scénarios bas/médian/
-haut), comparateur multi-actifs (crypto vs PEA vs livret), capture de lead branchée
-HubSpot/Tally, analytics sur les embeds depuis le blog.
+Pistes restantes : projection prospective (scénarios bas/médian/haut), capture de
+lead branchée HubSpot/Tally, analytics sur les embeds depuis le blog, cache des
+séries (KV/Redis) pour s'affranchir des quotas des API publiques.

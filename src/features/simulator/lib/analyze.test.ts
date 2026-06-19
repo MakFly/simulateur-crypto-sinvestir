@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { analyze, benchmarkValue, computeRisk } from "./analyze";
+import { analyze, computeRisk } from "./analyze";
 import type { PricePoint } from "../types";
 
 const p = (date: string, price: number): PricePoint => ({ date, price });
@@ -26,24 +26,26 @@ describe("analyze", () => {
     expect(a.lumpSum).toBeNull();
   });
 
-  test("deux benchmarks calculés sur l'échéancier", () => {
-    const a = analyze({
-      amount: 100,
-      frequency: "monthly",
-      prices: [p("2023-01-01", 10), p("2024-01-01", 10)],
-    });
-    expect(a.benchmarks).toHaveLength(2);
-    // sur ~1 an à taux positif, la valeur dépasse le capital investi
-    expect(a.benchmarks[0].finalValue).toBeGreaterThan(a.main.invested);
-  });
-});
-
-describe("benchmarkValue", () => {
-  test("intérêts composés : 100 € à 10 % sur 1 an ≈ 110 €", () => {
-    expect(benchmarkValue(["2023-01-01"], 100, "2024-01-01", 0.1)).toBeCloseTo(
-      110,
-      0,
+  test("benchmark : backtest réel sur la série fournie + Livret A présent", () => {
+    const a = analyze(
+      {
+        amount: 100,
+        frequency: "monthly",
+        prices: [p("2024-01-01", 10), p("2024-02-01", 10)],
+      },
+      [
+        {
+          key: "msci",
+          label: "ETF MSCI World",
+          prices: [p("2024-01-01", 50), p("2024-02-01", 100)],
+        },
+      ],
     );
+    // versements aux 2 dates ; parts = 100/50 + 100/100 = 3 ; valeur = 3 * 100
+    const msci = a.benchmarks.find((b) => b.key === "msci");
+    expect(msci?.finalValue).toBeCloseTo(300);
+    expect(msci?.roi).toBeCloseTo(0.5); // (300 - 200) / 200
+    expect(a.benchmarks.some((b) => b.key === "livretA")).toBe(true);
   });
 });
 
