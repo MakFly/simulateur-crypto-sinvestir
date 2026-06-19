@@ -1,10 +1,26 @@
 "use client";
 
-import { useState } from "react";
-import { ArrowDownRight, ArrowUpRight, Info } from "lucide-react";
+import { Controller, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+import { type DateRange } from "react-day-picker";
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  CalendarIcon,
+  Info,
+} from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -23,6 +39,7 @@ import {
   formatEURPrecise,
   formatPercent,
 } from "../lib/format";
+import { simulatorFormSchema, type SimulatorFormValues } from "../lib/schema";
 import type { Frequency } from "../types";
 import { EvolutionChart } from "./evolution-chart";
 
@@ -36,29 +53,58 @@ const FREQUENCIES: { value: Frequency; label: string }[] = [
 function isoDaysAgo(days: number): string {
   const d = new Date();
   d.setDate(d.getDate() - days);
-  return d.toISOString().slice(0, 10);
+  return format(d, "yyyy-MM-dd");
 }
 
-export function CryptoSimulator() {
-  const [coinId, setCoinId] = useState("bitcoin");
-  const [amount, setAmount] = useState(100);
-  const [frequency, setFrequency] = useState<Frequency>("monthly");
-  // période par défaut : 365 derniers jours (page rendue dynamiquement, donc
-  // SSR et client calculent la même date → pas de décalage d'hydratation)
-  const [from, setFrom] = useState(() => isoDaysAgo(365));
-  const [to, setTo] = useState(() => isoDaysAgo(0));
+const dateFromIso = (iso: string): Date => new Date(`${iso}T00:00:00`);
+const labelDate = (iso: string): string =>
+  format(dateFromIso(iso), "d MMM yyyy", { locale: fr });
 
-  const { result, loading, error, hasData } = useSimulation({
-    coinId,
-    amount,
-    frequency,
-    from,
-    to,
+export function CryptoSimulator() {
+  const {
+    control,
+    watch,
+    setValue,
+    formState: { errors },
+  } = useForm<SimulatorFormValues>({
+    resolver: zodResolver(simulatorFormSchema),
+    mode: "onChange",
+    // dates calculées au runtime (page dynamique) -> pas de mismatch d'hydratation
+    defaultValues: {
+      coinId: "bitcoin",
+      frequency: "monthly",
+      amount: "100",
+      from: isoDaysAgo(365),
+      to: isoDaysAgo(0),
+    },
   });
 
-  const coin = getCoin(coinId);
+  const values = watch();
+  const { result, loading, error, hasData } = useSimulation({
+    coinId: values.coinId,
+    amount: Number(values.amount) || 0,
+    frequency: values.frequency,
+    from: values.from,
+    to: values.to,
+  });
+
+  const coin = getCoin(values.coinId);
   const positive = result.profit >= 0;
   const showResults = hasData && !error;
+
+  const range: DateRange | undefined =
+    values.from && values.to
+      ? { from: dateFromIso(values.from), to: dateFromIso(values.to) }
+      : undefined;
+
+  function handleRangeSelect(selected: DateRange | undefined) {
+    setValue("from", selected?.from ? format(selected.from, "yyyy-MM-dd") : "", {
+      shouldValidate: true,
+    });
+    setValue("to", selected?.to ? format(selected.to, "yyyy-MM-dd") : "", {
+      shouldValidate: true,
+    });
+  }
 
   return (
     <div className="grid gap-5 @container lg:grid-cols-[minmax(0,360px)_1fr]">
@@ -66,83 +112,127 @@ export function CryptoSimulator() {
       <Card className="h-fit gap-5 p-5 sm:p-6">
         <div className="space-y-2">
           <Label htmlFor="crypto">Cryptomonnaie</Label>
-          <Select
-            value={coinId}
-            onValueChange={(v) => v && setCoinId(v)}
-          >
-            <SelectTrigger id="crypto" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {COINS.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name}
-                  <span className="text-muted-foreground">· {c.symbol}</span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Controller
+            control={control}
+            name="coinId"
+            render={({ field }) => (
+              <Select
+                value={field.value}
+                onValueChange={(v) => v && field.onChange(v)}
+              >
+                <SelectTrigger id="crypto" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {COINS.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                      <span className="text-muted-foreground">· {c.symbol}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
         </div>
 
         <div className="space-y-2">
           <Label>Fréquence d&apos;investissement</Label>
-          <Tabs
-            value={frequency}
-            onValueChange={(v) => setFrequency(v as Frequency)}
-          >
-            <TabsList className="grid w-full grid-cols-4">
-              {FREQUENCIES.map((f) => (
-                <TabsTrigger key={f.value} value={f.value} className="text-xs">
-                  {f.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
+          <Controller
+            control={control}
+            name="frequency"
+            render={({ field }) => (
+              <Tabs
+                value={field.value}
+                onValueChange={(v) => v && field.onChange(v as Frequency)}
+              >
+                <TabsList className="grid w-full grid-cols-4">
+                  {FREQUENCIES.map((f) => (
+                    <TabsTrigger
+                      key={f.value}
+                      value={f.value}
+                      className="text-xs"
+                    >
+                      {f.label}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </Tabs>
+            )}
+          />
         </div>
 
         <div className="space-y-2">
           <Label htmlFor="amount">
-            {frequency === "once" ? "Montant investi" : "Montant par versement"}
+            {values.frequency === "once"
+              ? "Montant investi"
+              : "Montant par versement"}
           </Label>
-          <div className="relative">
-            <Input
-              id="amount"
-              type="number"
-              inputMode="decimal"
-              min={1}
-              step={10}
-              value={amount}
-              onChange={(e) => setAmount(Math.max(0, Number(e.target.value)))}
-              className="pr-9"
-            />
-            <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-muted-foreground">
-              €
-            </span>
-          </div>
+          <Controller
+            control={control}
+            name="amount"
+            render={({ field }) => (
+              <div className="relative">
+                <Input
+                  id="amount"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  value={field.value}
+                  // contrôle "number only" : on ne garde que les chiffres
+                  onChange={(e) =>
+                    field.onChange(e.target.value.replace(/\D/g, ""))
+                  }
+                  onBlur={field.onBlur}
+                  aria-invalid={!!errors.amount}
+                  className="pr-9"
+                />
+                <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-muted-foreground">
+                  €
+                </span>
+              </div>
+            )}
+          />
+          {errors.amount && (
+            <p className="text-xs text-destructive">{errors.amount.message}</p>
+          )}
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-2">
-            <Label htmlFor="from">Début</Label>
-            <Input
-              id="from"
-              type="date"
-              value={from}
-              max={to || undefined}
-              onChange={(e) => setFrom(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="to">Fin</Label>
-            <Input
-              id="to"
-              type="date"
-              value={to}
-              min={from || undefined}
-              max={isoDaysAgo(0)}
-              onChange={(e) => setTo(e.target.value)}
-            />
-          </div>
+        <div className="space-y-2">
+          <Label>Période</Label>
+          <Popover>
+            <PopoverTrigger
+              className={cn(
+                buttonVariants({ variant: "outline" }),
+                "w-full justify-start font-normal",
+              )}
+            >
+              <CalendarIcon className="size-4 text-muted-foreground" />
+              {values.from && values.to ? (
+                <span>
+                  {labelDate(values.from)} – {labelDate(values.to)}
+                </span>
+              ) : (
+                <span className="text-muted-foreground">
+                  Choisir une période
+                </span>
+              )}
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="range"
+                selected={range}
+                onSelect={handleRangeSelect}
+                defaultMonth={dateFromIso(values.from || isoDaysAgo(30))}
+                disabled={{ after: new Date() }}
+                locale={fr}
+                autoFocus
+              />
+            </PopoverContent>
+          </Popover>
+          {errors.to && (
+            <p className="text-xs text-destructive">{errors.to.message}</p>
+          )}
         </div>
 
         <p className="flex items-start gap-2 text-xs text-muted-foreground">
@@ -209,9 +299,7 @@ export function CryptoSimulator() {
               />
               <Stat
                 label="Quantité"
-                value={
-                  coin ? formatCoins(result.coins, coin.symbol) : "—"
-                }
+                value={coin ? formatCoins(result.coins, coin.symbol) : "—"}
                 loading={loading || !showResults}
               />
               <Stat

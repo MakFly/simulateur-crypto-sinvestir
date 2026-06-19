@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isSupportedCoin } from "@/features/simulator/lib/coins";
+import { priceQuerySchema } from "@/features/simulator/lib/schema";
 import type { PricePoint } from "@/features/simulator/types";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -15,19 +15,24 @@ const MAX_DAYS = 365; // limite de l'historique gratuit CoinGecko
  */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const coin = searchParams.get("coin");
+  const parsed = priceQuerySchema.safeParse({
+    coin: searchParams.get("coin") ?? undefined,
+    from: searchParams.get("from") ?? undefined,
+    to: searchParams.get("to") ?? undefined,
+  });
 
-  if (!coin || !isSupportedCoin(coin)) {
+  if (!parsed.success) {
     return NextResponse.json(
-      { error: "Crypto non supportée ou manquante." },
+      { error: parsed.error.issues[0]?.message ?? "Requête invalide." },
       { status: 400 },
     );
   }
+  const { coin, from: fromParam, to: toParam } = parsed.data;
 
   const now = Date.now();
-  const toMs = clampMs(parseDate(searchParams.get("to")) ?? now, now);
+  const toMs = clampMs(parseDate(toParam) ?? now, now);
   const fromDefault = toMs - MAX_DAYS * DAY_MS;
-  let fromMs = parseDate(searchParams.get("from")) ?? fromDefault;
+  let fromMs = parseDate(fromParam) ?? fromDefault;
 
   // borne l'historique à MAX_DAYS (contrainte free tier) et garde from < to
   fromMs = Math.max(fromMs, toMs - MAX_DAYS * DAY_MS);
@@ -72,7 +77,7 @@ export async function GET(request: Request) {
 }
 
 /** Parse une date ISO `yyyy-mm-dd` en ms, ou `null` si invalide. */
-function parseDate(value: string | null): number | null {
+function parseDate(value: string | null | undefined): number | null {
   if (!value) return null;
   const ms = Date.parse(value);
   return Number.isNaN(ms) ? null : ms;
