@@ -55,44 +55,45 @@
   --radius: 0.5rem; /* 8px */
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
-  --background: #080c16; /* surface */
-  --foreground: #ffffff;
+  /* palette "trading" inspirée TradingView : slate profond + bleu/vert/rouge */
+  --background: #131722; /* fond principal */
+  --foreground: #e8eaed;
 
-  --card: #00173f; /* surface-elevated */
-  --card-foreground: #ffffff;
-  --popover: #00173f;
-  --popover-foreground: #ffffff;
+  --card: #1e222d; /* panneau élevé */
+  --card-foreground: #e8eaed;
+  --popover: #1e222d;
+  --popover-foreground: #e8eaed;
 
-  --primary: #1098f7;
-  --primary-foreground: #04111f;
+  --primary: #2962ff; /* bleu accent */
+  --primary-foreground: #ffffff;
 
-  --secondary: #0f172a; /* surface-soft */
-  --secondary-foreground: #ffffff;
+  --secondary: #2a2e39; /* surface secondaire */
+  --secondary-foreground: #e8eaed;
 
-  --muted: #0f172a;
-  --muted-foreground: #9ca3af;
+  --muted: #2a2e39;
+  --muted-foreground: #868993;
 
-  /* accent = surface de survol discrète (pas la couleur de marque) */
-  --accent: #102a4c;
-  --accent-foreground: #ffffff;
+  /* accent = surface de survol discrète */
+  --accent: #2a2e39;
+  --accent-foreground: #e8eaed;
 
-  --brand: #f8d047; /* jaune signature S'investir */
-  --brand-foreground: #1a1400;
+  --brand: #2962ff; /* chip / mise en avant */
+  --brand-foreground: #ffffff;
 
-  --success: #11d05a;
-  --success-foreground: #04200f;
+  --success: #089981; /* hausse (plus-value) */
+  --success-foreground: #ffffff;
 
-  --destructive: #fb2c36;
+  --destructive: #f23645; /* baisse (moins-value) */
 
-  --border: oklch(1 0 0 / 12%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: #1098f7;
+  --border: #2a2e39;
+  --input: #2a2e39;
+  --ring: #2962ff;
 
-  --chart-1: #1098f7; /* bleu  */
-  --chart-2: #f8d047; /* jaune */
-  --chart-3: #11d05a; /* vert  */
-  --chart-4: #7899ce; /* bleu doux */
-  --chart-5: #ff7300; /* orange */
+  --chart-1: #2962ff; /* bleu — valeur du portefeuille */
+  --chart-2: #089981; /* vert  */
+  --chart-3: #f23645; /* rouge */
+  --chart-4: #868993; /* gris  */
+  --chart-5: #f7931a; /* orange bitcoin */
 }
 
 @layer base {

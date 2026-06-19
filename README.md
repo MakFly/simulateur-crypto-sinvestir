@@ -4,8 +4,10 @@ Transposition du [simulateur crypto sinvestir.fr](https://sinvestir.fr/simulateu
 aux standards visuels de la suite [simulateurs.sinvestir.fr](https://simulateurs.sinvestir.fr/).
 
 On reprend la **logique fonctionnelle** (achat unique ou investissement programmé
-sur prix historiques réels) et on l'habille à **l'identité S'investir** (Lexend,
-palette bleu/jaune sur fond navy, dark-first).
+sur prix historiques réels) et on l'habille en **dark-first** (typo Lexend, radius
+8px repris de la suite S'investir), avec une **palette « trading » inspirée
+TradingView** (slate profond, bleu accent, vert/rouge pour les +/- value) adaptée
+au contexte crypto.
 
 ---
 
@@ -56,11 +58,13 @@ Une clé optionnelle se configure via `.env` — voir `.env.example`.
   sur **Vercel** : c'est la stack interne annoncée par S'investir, donc le rendu
   s'intègre directement à votre infra.
 - **Pourquoi pas Nuxt ?** Votre suite `simulateurs.sinvestir.fr` tourne en Nuxt 3 +
-  Nuxt UI. J'ai choisi Next.js pour coller au brief, **mais les design tokens ont
-  été extraits de votre CSS de prod et reproduits à l'identique** (couleurs, Lexend,
-  radius 8px, dark-first). Le composant est volontairement *framework-agnostic* :
-  toute la logique vit dans une fonction pure + un hook, sans couplage au layout —
-  transposable en composant Nuxt ou consommable tel quel via iframe.
+  Nuxt UI. J'ai choisi Next.js pour coller au brief. La structure visuelle reprend
+  vos fondamentaux (dark-first, **Lexend**, radius 8px), mais la palette a été
+  retravaillée façon plateforme de trading (TradingView) pour le contexte crypto.
+  Tous les tokens sont centralisés dans `globals.css` : revenir au bleu/jaune
+  S'investir = changer ~15 variables CSS. Le composant est volontairement
+  *framework-agnostic* : toute la logique vit dans une fonction pure + un hook, sans
+  couplage au layout — transposable en composant Nuxt ou consommable via iframe.
 - **Logique isolée et testée** : `simulate()` ne connaît ni React ni le réseau, ce
   qui la rend triviale à porter, à tester et à réutiliser.
 - **CoinGecko en proxy serveur** : la clé d'API n'est jamais exposée au client et
