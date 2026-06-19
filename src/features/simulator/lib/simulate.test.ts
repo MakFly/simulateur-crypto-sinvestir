@@ -99,4 +99,39 @@ describe("simulate", () => {
     expect(r.invested).toBe(100);
     expect(r.coins).toBeCloseTo(2);
   });
+
+  test("les frais d'achat réduisent la quantité acquise", () => {
+    const r = simulate({
+      amount: 100,
+      frequency: "once",
+      feePct: 1,
+      prices: [p("2024-01-01", 10), p("2024-01-02", 10)],
+    });
+    expect(r.invested).toBe(100); // on dépense bien 100
+    expect(r.coins).toBeCloseTo(9.9); // 100 * 0.99 / 10
+  });
+
+  test("la fiscalité (PFU) s'applique à la plus-value", () => {
+    const r = simulate({
+      amount: 100,
+      frequency: "once",
+      taxPct: 30,
+      prices: [p("2024-01-01", 10), p("2024-01-02", 20)],
+    });
+    expect(r.finalValue).toBeCloseTo(200);
+    expect(r.tax).toBeCloseTo(30); // 30 % de 100 € de gain
+    expect(r.netValue).toBeCloseTo(170);
+    expect(r.netProfit).toBeCloseTo(70);
+  });
+
+  test("pas d'impôt en moins-value", () => {
+    const r = simulate({
+      amount: 100,
+      frequency: "once",
+      taxPct: 30,
+      prices: [p("2024-01-01", 20), p("2024-01-02", 10)],
+    });
+    expect(r.tax).toBe(0);
+    expect(r.netValue).toBeCloseTo(r.finalValue);
+  });
 });

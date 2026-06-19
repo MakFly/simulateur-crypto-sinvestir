@@ -15,6 +15,10 @@ export interface SimulationParams {
   frequency: Frequency;
   /** Série de prix journaliers, triée par date croissante, déjà bornée à la période. */
   prices: PricePoint[];
+  /** Frais d'achat en % appliqués à chaque versement (défaut 0). */
+  feePct?: number;
+  /** Fiscalité en % appliquée à la plus-value finale (défaut 0 ; PFU FR = 30). */
+  taxPct?: number;
 }
 
 /** Point de la courbe d'évolution renvoyée au graphe. */
@@ -43,7 +47,35 @@ export interface SimulationResult {
   contributions: number;
   /** Prix d'achat moyen pondéré. */
   avgBuyPrice: number;
+  /** Impôt estimé sur la plus-value (0 si moins-value ou taxPct=0). */
+  tax: number;
+  /** Valeur finale nette d'impôt (`finalValue - tax`). */
+  netValue: number;
+  /** Plus/moins-value nette (`netValue - invested`). */
+  netProfit: number;
+  /** Rendement net (`netProfit / invested`). */
+  netRoi: number;
+  /** Dates ISO de chaque versement (pour les comparatifs benchmark). */
+  contributionDates: string[];
   series: ResultPoint[];
+}
+
+/** Comparatif à taux fixe (Livret A, ETF…) sur le même échéancier de versements. */
+export interface Benchmark {
+  key: string;
+  label: string;
+  /** Taux annuel (ratio, ex. 0.03). */
+  rate: number;
+  finalValue: number;
+  roi: number;
+}
+
+/** Indicateurs de risque calculés sur la trajectoire de valeur. */
+export interface RiskMetrics {
+  /** Plus forte baisse depuis un sommet (ratio négatif, ex. -0.62). */
+  maxDrawdown: number;
+  /** Volatilité annualisée des rendements journaliers (ratio). */
+  volatility: number;
 }
 
 /** Métadonnées d'une crypto proposée dans le simulateur. */

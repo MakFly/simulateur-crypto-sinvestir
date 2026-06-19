@@ -15,11 +15,21 @@ import { cn } from "@/lib/utils";
 
 function buildSnippet(origin: string): string {
   return `<iframe
+  id="sinvestir-sim"
   src="${origin}/embed"
   style="width:100%;border:0;height:720px"
   loading="lazy"
   title="Simulateur crypto S'investir">
-</iframe>`;
+</iframe>
+<script>
+  // auto-redimensionnement : ajuste la hauteur à celle du contenu
+  addEventListener("message", function (e) {
+    if (e.data && e.data.type === "sinvestir:embed-height") {
+      var f = document.getElementById("sinvestir-sim");
+      if (f) f.style.height = e.data.height + "px";
+    }
+  });
+</script>`;
 }
 
 export function EmbedDialog() {

@@ -31,6 +31,16 @@ export function formatPercent(ratio: number): string {
   return pct.format(ratio);
 }
 
+const pctPlain = new Intl.NumberFormat("fr-FR", {
+  style: "percent",
+  maximumFractionDigits: 0,
+});
+
+/** Ratio formaté en pourcentage non signé (ex. `78 %`). */
+export function formatPercentPlain(ratio: number): string {
+  return pctPlain.format(ratio);
+}
+
 /** Quantité d'actif avec un nombre de décimales adapté à l'ordre de grandeur. */
 export function formatCoins(value: number, symbol: string): string {
   const digits = value >= 1 ? 4 : 8;

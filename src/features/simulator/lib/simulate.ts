@@ -14,6 +14,11 @@ const EMPTY: SimulationResult = {
   coins: 0,
   contributions: 0,
   avgBuyPrice: 0,
+  tax: 0,
+  netValue: 0,
+  netProfit: 0,
+  netRoi: 0,
+  contributionDates: [],
   series: [],
 };
 
@@ -57,20 +62,25 @@ export function simulate({
   amount,
   frequency,
   prices,
+  feePct = 0,
+  taxPct = 0,
 }: SimulationParams): SimulationResult {
   if (prices.length === 0 || amount <= 0) return EMPTY;
 
+  const buyFactor = 1 - feePct / 100; // part du versement réellement investie
   let coins = 0;
   let invested = 0;
   let contributions = 0;
   let lastContribution: PricePoint | null = null;
+  const contributionDates: string[] = [];
   const series: ResultPoint[] = [];
 
   for (const point of prices) {
     if (point.price > 0 && shouldContribute(frequency, point, lastContribution)) {
-      coins += amount / point.price;
+      coins += (amount * buyFactor) / point.price;
       invested += amount;
       contributions += 1;
+      contributionDates.push(point.date);
       lastContribution = point;
     }
     series.push({
@@ -83,6 +93,9 @@ export function simulate({
 
   const finalValue = coins * prices[prices.length - 1].price;
   const profit = finalValue - invested;
+  const tax = profit > 0 ? (profit * taxPct) / 100 : 0;
+  const netValue = finalValue - tax;
+  const netProfit = netValue - invested;
 
   return {
     invested,
@@ -92,6 +105,11 @@ export function simulate({
     coins,
     contributions,
     avgBuyPrice: coins > 0 ? invested / coins : 0,
+    tax,
+    netValue,
+    netProfit,
+    netRoi: invested > 0 ? netProfit / invested : 0,
+    contributionDates,
     series,
   };
 }

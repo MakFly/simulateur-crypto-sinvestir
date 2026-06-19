@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
@@ -30,6 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { useSimulation } from "../hooks/use-simulation";
@@ -39,6 +40,7 @@ import {
   formatEUR,
   formatEURPrecise,
   formatPercent,
+  formatPercentPlain,
 } from "../lib/format";
 import { simulatorFormSchema, type SimulatorFormValues } from "../lib/schema";
 import type { Frequency } from "../types";
@@ -52,6 +54,10 @@ const FREQUENCIES: { value: Frequency; label: string }[] = [
   { value: "monthly", label: "Mensuel" },
 ];
 
+const FEE_PCT = 0.5; // frais d'achat illustratifs
+const TAX_PCT = 30; // PFU (flat tax) FR sur la plus-value
+const HISTORY_FLOOR = new Date("2020-01-01");
+
 function isoDaysAgo(days: number): string {
   const d = new Date();
   d.setDate(d.getDate() - days);
@@ -62,7 +68,19 @@ const dateFromIso = (iso: string): Date => new Date(`${iso}T00:00:00`);
 const shortDate = (iso: string): string =>
   format(dateFromIso(iso), "dd/MM/yyyy");
 
-export function CryptoSimulator() {
+interface CryptoSimulatorProps {
+  /** Valeurs initiales (ex. issues des query params pour le partage). */
+  initialValues?: Partial<SimulatorFormValues>;
+  /** Si vrai, l'état est reflété dans l'URL (page principale, pas l'embed). */
+  syncUrl?: boolean;
+}
+
+export function CryptoSimulator({
+  initialValues,
+  syncUrl = false,
+}: CryptoSimulatorProps) {
+  const [netMode, setNetMode] = useState(false);
+
   const {
     control,
     formState: { errors },
@@ -71,37 +89,74 @@ export function CryptoSimulator() {
     mode: "onChange",
     // dates calculées au runtime (page dynamique) -> pas de mismatch d'hydratation
     defaultValues: {
-      coinId: "bitcoin",
-      frequency: "monthly",
-      amount: "100",
-      from: isoDaysAgo(365),
-      to: isoDaysAgo(0),
+      coinId: initialValues?.coinId ?? "bitcoin",
+      frequency: initialValues?.frequency ?? "monthly",
+      amount: initialValues?.amount ?? "100",
+      from: initialValues?.from ?? isoDaysAgo(365),
+      to: initialValues?.to ?? isoDaysAgo(0),
     },
   });
 
   // useWatch type les champs comme optionnels, mais tous ont une valeur par
   // défaut dans useForm -> le cast est sûr.
   const values = useWatch({ control }) as SimulatorFormValues;
-  const { result, loading, error, hasData } = useSimulation({
+
+  // état reflété dans l'URL (partage) — replaceState : pas de navigation serveur
+  useEffect(() => {
+    if (!syncUrl) return;
+    const q = new URLSearchParams({
+      coin: values.coinId,
+      freq: values.frequency,
+      amount: values.amount,
+      from: values.from,
+      to: values.to,
+    });
+    window.history.replaceState(null, "", `?${q.toString()}`);
+  }, [
+    syncUrl,
+    values.coinId,
+    values.frequency,
+    values.amount,
+    values.from,
+    values.to,
+  ]);
+
+  const { analysis, loading, error, hasData, source } = useSimulation({
     coinId: values.coinId,
     amount: Number(values.amount) || 0,
     frequency: values.frequency,
     from: values.from,
     to: values.to,
+    feePct: netMode ? FEE_PCT : 0,
+    taxPct: netMode ? TAX_PCT : 0,
   });
 
+  const { main, lumpSum, benchmarks, risk } = analysis;
   const coin = getCoin(values.coinId);
-  const positive = result.profit >= 0;
   const showResults = hasData && !error;
 
-  // bornage croisé : début ≤ fin ≤ aujourd'hui (dates hors plage désactivées)
+  // valeurs affichées : brutes ou nettes de frais & fiscalité
+  const value = netMode ? main.netValue : main.finalValue;
+  const profit = netMode ? main.netProfit : main.profit;
+  const roi = netMode ? main.netRoi : main.roi;
+  const positive = profit >= 0;
+  const lumpValue = lumpSum
+    ? netMode
+      ? lumpSum.netValue
+      : lumpSum.finalValue
+    : 0;
+  const lumpRoi = lumpSum ? (netMode ? lumpSum.netRoi : lumpSum.roi) : 0;
+
+  // bornage croisé : 2020 ≤ début ≤ fin ≤ aujourd'hui
   const today = new Date();
   const fromDisabled: Matcher[] = [
+    { before: HISTORY_FLOOR },
     { after: values.to ? dateFromIso(values.to) : today },
   ];
-  const toDisabled: Matcher[] = values.from
-    ? [{ before: dateFromIso(values.from) }, { after: today }]
-    : [{ after: today }];
+  const toDisabled: Matcher[] = [
+    { before: values.from ? dateFromIso(values.from) : HISTORY_FLOOR },
+    { after: today },
+  ];
 
   return (
     <div className="grid gap-5 @container lg:grid-cols-[minmax(0,360px)_1fr]">
@@ -230,10 +285,22 @@ export function CryptoSimulator() {
           )}
         </div>
 
+        <div className="flex items-center justify-between gap-3 rounded-lg bg-secondary/50 p-3">
+          <Label htmlFor="net" className="cursor-pointer leading-tight">
+            Net de frais &amp; fiscalité
+            <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+              Frais {FEE_PCT} % · PFU {TAX_PCT} % sur la plus-value
+            </span>
+          </Label>
+          <Switch id="net" checked={netMode} onCheckedChange={setNetMode} />
+        </div>
+
         <p className="flex items-start gap-2 text-xs text-muted-foreground">
           <Info className="mt-0.5 size-3.5 shrink-0" />
-          Historique limité aux 365 derniers jours sur la démo (palier gratuit
-          CoinGecko).
+          Historique depuis 2020 · données {source === "coingecko"
+            ? "CoinGecko"
+            : "Binance"}{" "}
+          (prix de clôture journaliers).
         </p>
       </Card>
 
@@ -252,6 +319,7 @@ export function CryptoSimulator() {
               <div className="flex items-start justify-between gap-2">
                 <p className="text-sm text-muted-foreground">
                   Valeur estimée de ton portefeuille {coin?.name}
+                  {netMode && " (net)"}
                 </p>
                 <ChartHelpDialog />
               </div>
@@ -260,7 +328,7 @@ export function CryptoSimulator() {
                   <Skeleton className="h-10 w-44" />
                 ) : (
                   <span className="text-[clamp(1.9rem,6cqw,2.75rem)] font-bold leading-none tracking-tight">
-                    {formatEUR(result.finalValue)}
+                    {formatEUR(value)}
                   </span>
                 )}
                 {showResults && !loading && (
@@ -277,7 +345,7 @@ export function CryptoSimulator() {
                     ) : (
                       <ArrowDownRight className="size-4" />
                     )}
-                    {formatPercent(result.roi)}
+                    {formatPercent(roi)}
                   </span>
                 )}
               </div>
@@ -286,23 +354,23 @@ export function CryptoSimulator() {
             <div className="grid grid-cols-2 gap-px bg-border @lg:grid-cols-4">
               <Stat
                 label="Total investi"
-                value={formatEUR(result.invested)}
+                value={formatEUR(main.invested)}
                 loading={loading || !showResults}
               />
               <Stat
                 label={positive ? "Plus-value" : "Moins-value"}
-                value={formatEUR(result.profit)}
+                value={formatEUR(profit)}
                 accent={positive ? "success" : "destructive"}
                 loading={loading || !showResults}
               />
               <Stat
                 label="Quantité"
-                value={coin ? formatCoins(result.coins, coin.symbol) : "—"}
+                value={coin ? formatCoins(main.coins, coin.symbol) : "—"}
                 loading={loading || !showResults}
               />
               <Stat
                 label="Prix d'achat moyen"
-                value={formatEURPrecise(result.avgBuyPrice)}
+                value={formatEURPrecise(main.avgBuyPrice)}
                 loading={loading || !showResults}
               />
             </div>
@@ -313,17 +381,76 @@ export function CryptoSimulator() {
               ) : (
                 <EvolutionChart
                   key={`${values.coinId}-${values.from}-${values.to}`}
-                  series={result.series}
+                  series={main.series}
                   symbol={coin?.symbol ?? ""}
                 />
               )}
             </div>
 
+            {showResults && !loading && (
+              <div className="space-y-5 border-t border-border p-5 sm:p-6">
+                {/* Risque de l'actif */}
+                <div>
+                  <p className="mb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                    Risque de l&apos;actif sur la période
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-lg border border-border p-3">
+                      <p className="text-xs text-muted-foreground">
+                        Volatilité annualisée
+                      </p>
+                      <p className="mt-0.5 font-semibold">
+                        {formatPercentPlain(risk.volatility)}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-border p-3">
+                      <p className="text-xs text-muted-foreground">
+                        Plus forte baisse
+                      </p>
+                      <p className="mt-0.5 font-semibold text-destructive">
+                        {formatPercent(risk.maxDrawdown)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Comparaison d'opportunité */}
+                <div>
+                  <p className="mb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                    Et avec les mêmes versements ailleurs&nbsp;?
+                  </p>
+                  <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
+                    <CompareRow
+                      label={`${coin?.name ?? "Crypto"} — ta simulation`}
+                      value={value}
+                      roi={roi}
+                      highlight
+                    />
+                    {lumpSum && (
+                      <CompareRow
+                        label="Si tout investi au départ"
+                        value={lumpValue}
+                        roi={lumpRoi}
+                      />
+                    )}
+                    {benchmarks.map((b) => (
+                      <CompareRow
+                        key={b.key}
+                        label={`${b.label} (${formatPercentPlain(b.rate)}/an)`}
+                        value={b.finalValue}
+                        roi={b.roi}
+                      />
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+
             <p className="border-t border-border p-4 text-center text-xs leading-relaxed text-muted-foreground">
-              Simulation rétrospective sur prix historiques réels. Les
-              performances passées ne préjugent pas des performances futures.
-              Investir en crypto-actifs comporte un risque de perte en capital
-              partielle ou totale.
+              Simulation rétrospective sur prix historiques réels ; benchmarks à
+              taux fixe illustratifs. Les performances passées ne préjugent pas
+              des performances futures. Investir en crypto-actifs comporte un
+              risque de perte en capital partielle ou totale.
             </p>
           </>
         )}
@@ -360,6 +487,42 @@ function Stat({
         </p>
       )}
     </div>
+  );
+}
+
+function CompareRow({
+  label,
+  value,
+  roi,
+  highlight,
+}: {
+  label: string;
+  value: number;
+  roi: number;
+  highlight?: boolean;
+}) {
+  return (
+    <li
+      className={cn(
+        "flex items-center justify-between gap-3 px-3 py-2.5 text-sm",
+        highlight && "bg-primary/10",
+      )}
+    >
+      <span className={cn("text-muted-foreground", highlight && "font-medium text-foreground")}>
+        {label}
+      </span>
+      <span className="flex items-baseline gap-2 text-right">
+        <span className="font-semibold">{formatEUR(value)}</span>
+        <span
+          className={cn(
+            "text-xs font-medium",
+            roi >= 0 ? "text-success" : "text-destructive",
+          )}
+        >
+          {formatPercent(roi)}
+        </span>
+      </span>
+    </li>
   );
 }
 
