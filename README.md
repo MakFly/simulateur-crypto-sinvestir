@@ -1,36 +1,105 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Simulateur Crypto — façon S'investir
 
-## Getting Started
+Transposition du [simulateur crypto sinvestir.fr](https://sinvestir.fr/simulateur-crypto-monnaie/)
+aux standards visuels de la suite [simulateurs.sinvestir.fr](https://simulateurs.sinvestir.fr/).
 
-First, run the development server:
+On reprend la **logique fonctionnelle** (achat unique ou investissement programmé
+sur prix historiques réels) et on l'habille à **l'identité S'investir** (Lexend,
+palette bleu/jaune sur fond navy, dark-first).
+
+---
+
+## Lancer le projet
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+bun install
+bun run dev          # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+| Commande          | Effet                                   |
+| ----------------- | --------------------------------------- |
+| `bun run dev`     | Serveur de dev (Turbopack)              |
+| `bun run build`   | Build de production + typecheck         |
+| `bun run start`   | Serveur de production                   |
+| `bun run lint`    | ESLint                                  |
+| `bun test`        | Tests unitaires de la logique de calcul |
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Aucune variable d'environnement n'est requise (l'API CoinGecko publique suffit).
+Une clé optionnelle se configure via `.env` — voir `.env.example`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## Architecture
 
-To learn more about Next.js, take a look at the following resources:
+```
+ Navigateur ── <CryptoSimulator /> (composant autonome, embeddable)
+      │              │
+      │   useSimulation() ── simulate() : logique pure one-shot + DCA (testée)
+      │              │
+      └── fetch ──▶ /api/prices (Route Handler) ──▶ CoinGecko (prix EUR, 365 j, caché 1 h)
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **`features/simulator/lib/simulate.ts`** — logique pure, sans dépendance UI ni
+  réseau, couverte par des tests (`simulate.test.ts`).
+- **`features/simulator/hooks/use-simulation.ts`** — orchestration : fetch des
+  prix + recalcul mémoïsé.
+- **`app/api/prices/route.ts`** — proxy CoinGecko côté serveur (clé masquée, cache).
+- **`features/simulator/components/`** — `CryptoSimulator` (form + résultats) et
+  `EvolutionChart` (Recharts).
+- **`app/embed/`** — version sans chrome, pensée pour l'iframe.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## Partis pris techniques
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **Next.js 16 (App Router) + Tailwind v4 + shadcn/ui + TypeScript strict**, déployé
+  sur **Vercel** : c'est la stack interne annoncée par S'investir, donc le rendu
+  s'intègre directement à votre infra.
+- **Pourquoi pas Nuxt ?** Votre suite `simulateurs.sinvestir.fr` tourne en Nuxt 3 +
+  Nuxt UI. J'ai choisi Next.js pour coller au brief, **mais les design tokens ont
+  été extraits de votre CSS de prod et reproduits à l'identique** (couleurs, Lexend,
+  radius 8px, dark-first). Le composant est volontairement *framework-agnostic* :
+  toute la logique vit dans une fonction pure + un hook, sans couplage au layout —
+  transposable en composant Nuxt ou consommable tel quel via iframe.
+- **Logique isolée et testée** : `simulate()` ne connaît ni React ni le réseau, ce
+  qui la rend triviale à porter, à tester et à réutiliser.
+- **CoinGecko en proxy serveur** : la clé d'API n'est jamais exposée au client et
+  les réponses sont cachées 1 h pour limiter le rate-limit.
+- **`fetch` natif** (pas d'axios), **peu de dépendances** (recharts + shadcn).
+- **Responsive mobile-first** : layout fluide, `min-h-dvh`, container queries,
+  typographie en `clamp()`, cibles tactiles ≥ 44px, dark mode natif.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+## Intégration & embedding
+
+Le composant est conçu pour deux usages :
+
+1. **Remplacer le simulateur actuel** dans la suite — il suffit de monter
+   `<CryptoSimulator />` ; il n'a aucune dépendance au reste de l'app.
+2. **Aperçu embarqué depuis `sinvestir.fr`** — via la route dédiée :
+
+   ```html
+   <iframe src="https://<demo>.vercel.app/embed" style="width:100%;border:0;height:680px"></iframe>
+   ```
+
+> Pour la démo, les intégrations réelles ne sont pas branchées : l'objectif est de
+> montrer que le composant est réutilisable et embarquable proprement.
+
+---
+
+## Limites assumées (démo)
+
+- **Historique borné à 365 jours** (palier gratuit CoinGecko). Pour des périodes
+  longues, basculer sur l'API payante CoinGecko ou un dataset pré-chargé.
+- **Set de ~12 cryptos majeures** (vs « 7 000+ »). La couche données accepte
+  n'importe quel `id` CoinGecko : étendre la liste suffit.
+- **Pas de frais ni de fiscalité** dans le calcul (comme le simulateur de référence).
+
+---
+
+## Suggestions d'amélioration
+
+Voir le formulaire de rendu — pistes : projection prospective (scénarios bas/médian/
+haut), comparateur multi-actifs (crypto vs PEA vs livret), capture de lead branchée
+HubSpot/Tally, analytics sur les embeds depuis le blog.
