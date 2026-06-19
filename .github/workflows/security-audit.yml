@@ -53,6 +53,24 @@ jobs:
         if: steps.check.outputs.exists == 'true' && steps.audit.outputs.status == 'vulnerable'
         run: npm audit --audit-level=high
 
+  bun-audit:
+    name: Bun Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # audit fidèle au bun.lock réel ; échoue sur high/critical
+      - name: Run bun audit
+        run: bun audit --audit-level=high
+
   obfuscation-scan:
     name: JS Obfuscation Scan
     runs-on: ubuntu-latest

@@ -52,7 +52,7 @@ export function EmbedDialog() {
         <Code2 className="size-4" />
         Intégrer
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Intégrer le simulateur</DialogTitle>
           <DialogDescription>
@@ -62,8 +62,8 @@ export function EmbedDialog() {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="relative">
-          <pre className="overflow-x-auto rounded-lg border border-border bg-secondary p-3 pr-12 text-xs leading-relaxed text-foreground">
+        <div className="relative min-w-0">
+          <pre className="rounded-lg border border-border bg-secondary p-3 pr-12 text-xs leading-relaxed whitespace-pre-wrap break-words text-foreground">
             <code>{snippet}</code>
           </pre>
           <Button
