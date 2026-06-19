@@ -13,7 +13,6 @@ import {
 } from "recharts";
 import { ZoomOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ChartHelpDialog } from "./chart-help-dialog";
 import { formatCoins, formatEUR } from "../lib/format";
 import type { ResultPoint } from "../types";
 
@@ -107,9 +106,6 @@ export function EvolutionChart({ series, symbol }: EvolutionChartProps) {
 
   return (
     <div className="relative size-full cursor-crosshair select-none outline-none [&_*]:outline-none [&_.recharts-surface]:outline-none">
-      <div className="absolute top-0 left-1 z-10">
-        <ChartHelpDialog />
-      </div>
       {zoom && (
         <Button
           variant="outline"

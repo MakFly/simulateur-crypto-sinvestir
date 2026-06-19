@@ -42,6 +42,7 @@ import {
 } from "../lib/format";
 import { simulatorFormSchema, type SimulatorFormValues } from "../lib/schema";
 import type { Frequency } from "../types";
+import { ChartHelpDialog } from "./chart-help-dialog";
 import { EvolutionChart } from "./evolution-chart";
 
 const FREQUENCIES: { value: Frequency; label: string }[] = [
@@ -248,9 +249,12 @@ export function CryptoSimulator() {
         ) : (
           <>
             <div className="border-b border-border p-5 sm:p-6">
-              <p className="text-sm text-muted-foreground">
-                Valeur estimée de ton portefeuille {coin?.name}
-              </p>
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-sm text-muted-foreground">
+                  Valeur estimée de ton portefeuille {coin?.name}
+                </p>
+                <ChartHelpDialog />
+              </div>
               <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
                 {loading || !showResults ? (
                   <Skeleton className="h-10 w-44" />
