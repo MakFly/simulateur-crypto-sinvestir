@@ -308,6 +308,7 @@ export function CryptoSimulator() {
                 <Skeleton className="size-full" />
               ) : (
                 <EvolutionChart
+                  key={`${values.coinId}-${values.from}-${values.to}`}
                   series={result.series}
                   symbol={coin?.symbol ?? ""}
                 />

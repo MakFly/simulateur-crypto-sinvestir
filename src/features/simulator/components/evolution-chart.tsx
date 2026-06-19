@@ -1,14 +1,19 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import {
   Area,
   AreaChart,
   CartesianGrid,
+  ReferenceArea,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
+import { ZoomOut } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ChartHelpDialog } from "./chart-help-dialog";
 import { formatCoins, formatEUR } from "../lib/format";
 import type { ResultPoint } from "../types";
 
@@ -78,13 +83,66 @@ function ChartTooltip({
 }
 
 export function EvolutionChart({ series, symbol }: EvolutionChartProps) {
+  const [zoom, setZoom] = useState<{ from: string; to: string } | null>(null);
+  const [refLeft, setRefLeft] = useState<string | null>(null);
+  const [refRight, setRefRight] = useState<string | null>(null);
+
+  // données affichées = série complète, ou bornée à la plage zoomée
+  const data = useMemo(() => {
+    if (!zoom) return series;
+    return series.filter((p) => p.date >= zoom.from && p.date <= zoom.to);
+  }, [series, zoom]);
+
+  function endSelection() {
+    if (refLeft && refRight && refLeft !== refRight) {
+      const [from, to] = [refLeft, refRight].sort();
+      setZoom({ from, to });
+    }
+    setRefLeft(null);
+    setRefRight(null);
+  }
+
+  const selecting =
+    refLeft !== null && refRight !== null && refLeft !== refRight;
+
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <AreaChart
-        data={series}
-        margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
-      >
-        <defs>
+    <div className="relative size-full cursor-crosshair select-none outline-none [&_*]:outline-none [&_.recharts-surface]:outline-none">
+      <div className="absolute top-0 left-1 z-10">
+        <ChartHelpDialog />
+      </div>
+      {zoom && (
+        <Button
+          variant="outline"
+          size="xs"
+          onClick={() => setZoom(null)}
+          className="absolute top-0 right-2 z-10"
+        >
+          <ZoomOut className="size-3.5" />
+          Réinitialiser
+        </Button>
+      )}
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart
+          data={data}
+          margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+          onMouseDown={(e) => {
+            const lbl = e?.activeLabel;
+            if (lbl != null) {
+              setRefLeft(String(lbl));
+              setRefRight(String(lbl));
+            }
+          }}
+          onMouseMove={(e) => {
+            const lbl = e?.activeLabel;
+            if (refLeft && lbl != null) setRefRight(String(lbl));
+          }}
+          onMouseUp={endSelection}
+          onMouseLeave={() => {
+            setRefLeft(null);
+            setRefRight(null);
+          }}
+        >
+          <defs>
           <linearGradient id="fillValue" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={0.35} />
             <stop offset="100%" stopColor="var(--color-primary)" stopOpacity={0} />
@@ -128,7 +186,17 @@ export function EvolutionChart({ series, symbol }: EvolutionChartProps) {
           fill="url(#fillValue)"
           dot={false}
         />
+        {selecting && (
+          <ReferenceArea
+            x1={refLeft ?? undefined}
+            x2={refRight ?? undefined}
+            strokeOpacity={0}
+            fill="var(--color-primary)"
+            fillOpacity={0.12}
+          />
+        )}
       </AreaChart>
     </ResponsiveContainer>
+    </div>
   );
 }
